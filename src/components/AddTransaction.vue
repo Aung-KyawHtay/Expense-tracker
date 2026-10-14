@@ -1,235 +1,233 @@
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
-const type = ref("expense"); // 'income' or 'expense'
+const props = defineProps({
+  transaction: {
+    type: Object,
+    default: null,
+  },
+});
+
+const emit = defineEmits(["close", "add", "update"]);
+
+const type = ref("expense");
+const title = ref("");
 const amount = ref("");
 const category = ref("");
-const date = ref(new Date().toISOString().slice(0, 10)); // current date ko ISO format
-const note = ref("");
+const date = ref(new Date().toISOString().slice(0, 10));
 
-const emit = defineEmits(["add-transaction", "close-modal"]);
+function fillForm(transaction) {
+  type.value = transaction?.type ?? "expense";
+  title.value = transaction?.title ?? "";
+  amount.value = transaction?.amount ?? "";
+  category.value = transaction?.category ?? "";
+  date.value = transaction?.date ?? new Date().toISOString().slice(0, 10);
+}
 
-function addTransaction() {
-  const Amount = Number(amount.value);
+watch(
+  () => props.transaction,
+  (transaction) => fillForm(transaction),
+  { immediate: true },
+);
 
-  if (!Number.isFinite(Amount) || Amount <= 0) {
-    alert("Enter a valid amount.");
+function submitTransaction() {
+  if (
+    !category.value ||
+    !date.value ||
+    !amount.value ||
+    Number(amount.value) <= 0
+  ) {
+    alert("Please fill in Category, Date and a valid Amount.");
     return;
   }
 
-  if (!category.value) {
-    alert("Please select a category.");
-    return;
-  }
-
-  const transaction = {
-    id: crypto.randomUUID(), // Date.now()
-    title: note.value.trim() || category.value, // If no note use category
-    
-    amount: Amount,
+  const transactionData = {
+    id: props.transaction?.id ?? Date.now(),
     type: type.value,
+    title: title.value.trim(),
+    amount: Number(amount.value),
     category: category.value,
     date: date.value,
-    note: note.value.trim(),
   };
 
-  emit("add-transaction", transaction);
-  
-  // Modal close
-  emit("close-modal");
-
-  // reset form
-  amount.value = "";
-  category.value = "";
-  note.value = "";
+  if (props.transaction) {
+    emit("update", transactionData);
+  } else {
+    emit("add", transactionData);
+  }
 }
 </script>
-
 <template>
-  <div class="modal-overlay">
-    <div class="transaction-card">
-      <h2>Add Transaction</h2>
-
-      <form @submit.prevent="addTransaction">
-        <div class="form-group">
-          <label>Type</label>
-          <div class="type-radio">
-            <label class="radio-label">
-               <input type="radio" value="income" v-model="type"> Income
-            </label>
-            <label class="radio-label">
-               <input type="radio" value="expense" v-model="type"> Expense
-            </label>
-          </div>
+  <div class="modal-overlay" @click.self="emit('close')">
+    <form class="transaction-form" @submit.prevent="submitTransaction">
+      <div class="form-header">
+        <div>
+          <h2>Add Transaction</h2>
+          <p>Enter your income or expense details.</p>
         </div>
 
-        <div class="form-group">
-          <label>Amount</label>
-          <input type="number" step="any" v-model="amount" placeholder="0.00" required />
-        </div>
+        <button
+          type="button"
+          class="close-btn"
+          @click="emit('close')"
+          aria-label="Close form"
+        ></button>
+      </div>
 
-        <!-- Category -->
-        <div class="form-group">
-          <label>Category</label>
-          <select v-model="category" required>
-            <option value="" disabled>Select a category</option>
-            <option value="Food & Drinks">Food & Drinks</option>
-            <option value="Transport">Transport</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Bills">Bills</option>
-            <option value="Salary">Salary</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
+      <label for="type">Transaction Type</label>
+      <select id="type" v-model="type">
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+      </select>
 
-        <div class="form-group">
-          <label>Date</label>
-          <input type="date" v-model="date" required />
-        </div>
+      <label>Category</label>
+      <select v-model="category">
+        <option value="" disabled selected>Select Category</option>
+        <option value="Foods and Dinks">Foods and Dinks</option>
+        <option value="Health">Health</option>
+        <option value="Transport">Transport</option>
+        <option value="Shopping">Shopping</option>
+        <option value="Travel">Travel</option>
+        <option value="Bills">Bills</option>
+        <option value="Salary">Salary</option>
+        <option value="Others">Others</option>
+      </select>
 
-        <!-- Note (optional) -->
-        <div class="form-group">
-          <label>Note <span class="optional">(optional)</span></label>
-          <input
-            type="text"
-            v-model="note"
-            placeholder="e.g. Lunch with friends"
-          />
-        </div>
+      <label for="amount">Amount</label>
+      <input
+        id="amount"
+        v-model="amount"
+        type="number"
+        min="0.01"
+        step="0.01"
+        placeholder="Enter amount"
+        required
+      />
 
-        <!-- Action Buttons -->
-        <div class="button-group">
-          <button type="button" @click="$emit('close-modal')" class="cancel-btn">Cancel</button>
-          <button type="submit" class="submit-btn">Add</button>
-        </div>
-      </form>
-    </div>
+      <label for="date">Date</label>
+      <input id="date" v-model="date" type="date" required />
+
+      <label for="title">Notes</label>
+      <input
+        id="title"
+        v-model="title"
+        type="text"
+        placeholder="e.g. Food, Salary"
+      />
+
+      <div class="form-actions">
+        <button type="button" class="cancel-btn" @click="emit('close')">
+          Cancel
+        </button>
+
+        <button type="submit" class="save-btn">Save</button>
+      </div>
+    </form>
   </div>
 </template>
 
 <style scoped>
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  inset: 0;
   z-index: 1000;
-  animation: fadeIn 0.2s ease-in-out;
-} 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.55);
+}
 
-.transaction-card {
-  background: #ffffff;
+.transaction-form {
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 28px;
   border-radius: 16px;
-  width: 100%;
-  max-width: 440px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  font-family: sans-serif;
-  box-sizing: border-box;
-  margin: 20px;
-}
-
-h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 20px;
-  color: #111827;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 6px;
-}
-
-.optional {
-  font-weight: normal;
-  color: #9ca3af;
-}
-
-.type-radio {
-  display: flex;
-  gap: 20px;
-}
-
-.radio-label {
-  font-weight: normal !important;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-input[type="text"],
-input[type="number"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  box-sizing: border-box;
-  outline: none;
   background: #fff;
   color: #111827;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
 
-input:focus, select:focus {
-  border-color: #194bb7;
-  box-shadow: 0 0 0 3px rgba(25, 75, 183, 0.1);
-}
-
-.button-group {
+.form-header {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 24px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.cancel-btn, .submit-btn {
-  padding: 10px 18px;
-  border-radius: 8px;
+.form-header h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.form-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.close-btn {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.transaction-form label {
+  display: block;
+  margin: 16px 0 8px;
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
+}
+
+.transaction-form input,
+.transaction-form select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+.transaction-form input:focus,
+.transaction-form select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.form-actions button {
+  padding: 11px 16px;
   border: none;
-  transition: background 0.2s;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .cancel-btn {
-  background: #e5e7eb;
+  background: #f3f4f6;
   color: #374151;
 }
 
-.submit-btn {
-  background: #194bb7;
-  color: #ffffff;
+.save-btn {
+  background: #2563eb;
+  color: #fff;
 }
 
-.cancel-btn:hover {
-  background: #d1d5db;
-}
-
-.submit-btn:hover {
-  background: #053679;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+.save-btn:hover {
+  background: #1d4ed8;
 }
 </style>
