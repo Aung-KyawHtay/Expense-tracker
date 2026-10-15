@@ -16,6 +16,7 @@ const amount = ref("");
 const category = ref("");
 const date = ref(new Date().toISOString().slice(0, 10));
 
+//form create
 function fillForm(transaction) {
   type.value = transaction?.type ?? "expense";
   title.value = transaction?.title ?? "";
@@ -31,21 +32,21 @@ watch(
 );
 
 function submitTransaction() {
+  const Amount = Number(amount.value);
   if (
     !category.value ||
-    !date.value ||
-    !amount.value ||
-    Number(amount.value) <= 0
+    !Amount ||
+    Amount <= 0
   ) {
-    alert("Please fill in Category, Date and a valid Amount.");
+    alert("Please fill in Category and a valid Amount.");
     return;
   }
-
+  //Form with data
   const transactionData = {
-    id: props.transaction?.id ?? Date.now(),
+    id: props.transaction?.id ?? Date.now(), //crypto.randomUUID()
     type: type.value,
     title: title.value.trim(),
-    amount: Number(amount.value),
+    amount: Amount,
     category: category.value,
     date: date.value,
   };
@@ -58,20 +59,23 @@ function submitTransaction() {
 }
 </script>
 <template>
-  <div class="modal-overlay" @click.self="emit('close')">
+  <!-- close modal when click the outside -->
+  <div class="modal-overlay" @click.self="emit('close')"> 
     <form class="transaction-form" @submit.prevent="submitTransaction">
       <div class="form-header">
         <div>
           <h2>Add Transaction</h2>
           <p>Enter your income or expense details.</p>
         </div>
-
+        <!-- send close event to closeAddModal -->
         <button
           type="button"
           class="close-btn"
           @click="emit('close')"
           aria-label="Close form"
-        ></button>
+        >
+        x
+      </button>
       </div>
 
       <label for="type">Transaction Type</label>
@@ -98,9 +102,7 @@ function submitTransaction() {
         id="amount"
         v-model="amount"
         type="number"
-        min="0.01"
-        step="0.01"
-        placeholder="Enter amount"
+        placeholder="Enter amount.."
         required
       />
 

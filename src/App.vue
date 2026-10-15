@@ -2,10 +2,11 @@
 import { ref, watch, computed } from "vue";
 import AddTransaction from "./components/AddTransaction.vue";
 import Pagination from "./components/Pagination.vue";
+import Search from "./components/Search.vue";
 
 const showAddModal = ref(false);
 const transactions = ref(
-  JSON.parse(localStorage.getItem("transactions") || "[]"),
+  JSON.parse(localStorage.getItem("transactions") || "[]"), //JSON string ko js data save
 );
 
 watch(
@@ -15,6 +16,12 @@ watch(
   },
   { deep: true },
 );
+const filteredTransactions = ref([]);
+
+function updateFiltered(results) {
+  filteredTransactions.value = results;
+  currentPage.value =1;
+}
 
 const currentPage = ref(1);
 const itemsPerPage = 5;
@@ -24,9 +31,9 @@ const totalPages = computed(() => {
 });
 
 const paginatedTransactions = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
+  const start = (currentPage.value - 1) * itemsPerPage; //page mr data ko index number nae yuu
 
-  return transactions.value.slice(start, start + itemsPerPage);
+  return filteredTransactions.value.slice(start, start + itemsPerPage); //(0, 0+5)=(0,1,2,3,4)
 });
 
 function changePage(page) {
@@ -38,7 +45,7 @@ function changePage(page) {
 const editingTransaction = ref(null);
 
 function openAddModal() {
-  editingTransaction.value = null;
+  //editingTransaction.value = null;
   showAddModal.value = true;
 }
 
@@ -70,7 +77,7 @@ function editTransaction(transaction) {
 
 function deleteTransaction(id) {
   const confirmed = window.confirm(
-    "Are you sure you want to delete this transaction?",
+    "Are you sure to delete this transaction?",
   );
 
   if (confirmed) {
@@ -80,8 +87,8 @@ function deleteTransaction(id) {
   }
 }
 
-function formatAmount(amount) {
-  return Number(amount).toLocaleString();
+function formatAmount(Amount) {
+  return Amount.toLocaleString();
 }
 </script>
 
@@ -96,16 +103,22 @@ function formatAmount(amount) {
       <button class="add-btn" @click="openAddModal">+ Add Transaction</button>
     </header>
 
+    <Search
+      :transactions="transactions"
+      @filtered="updateFiltered"
+    />
+
     <section class="content">
       <div class="table-header">
         <h2>Transactions</h2>
-        <span>{{ transactions.length }} transactions</span>
+        <span>{{ filteredTransactions.length }} transactions</span>
       </div>
 
       <div class="table-wrapper">
         <table>
           <thead>
             <tr>
+              <th></th>
               <th>Date</th>
               <th>Category</th>
               <th>Notes</th>
@@ -116,7 +129,7 @@ function formatAmount(amount) {
           </thead>
 
           <tbody>
-            <tr v-if="transactions.length === 0">
+            <tr v-if="filteredTransactions.length === 0">
               <td colspan="6" class="empty-message">No transactions yet.</td>
             </tr>
 
@@ -124,6 +137,7 @@ function formatAmount(amount) {
               v-for="transaction in paginatedTransactions"
               :key="transaction.id"
             >
+              <td><input type="checkbox"></td>
               <td>{{ transaction.date }}</td>
               <td>{{ transaction.category }}</td>
               <td>{{ transaction.title || "—" }}</td>
@@ -135,7 +149,7 @@ function formatAmount(amount) {
               </td>
 
               <td class="amount-column" :class="transaction.type">
-                {{ transaction.type === "income" ? "+" : "-" }}
+                MMK
                 {{ formatAmount(transaction.amount) }}
               </td>
 
@@ -249,7 +263,6 @@ table {
   border-collapse: collapse;
   text-align: left;
 }
-
 th,
 td {
   padding: 15px 12px;
@@ -282,19 +295,9 @@ tbody tr:hover {
 .type-badge {
   display: inline-block;
   padding: 5px 9px;
-  border-radius: 20px;
-  font-size: 12px;
+  border-radius: 10px;
+  font-weight: bold;
   text-transform: capitalize;
-}
-
-.type-badge.income {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.type-badge.expense {
-  background: #fee2e2;
-  color: #b91c1c;
 }
 
 .income.amount-column {
