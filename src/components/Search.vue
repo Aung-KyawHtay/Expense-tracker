@@ -1,14 +1,22 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { categories } from "@/constants/categories";
+import type { Transactions } from "@/types/transaction";
 
-const props = defineProps({
-  transactions: {
-    type: Array,
-    default: () => [],
-  },
-});
+// const props = defineProps({
+//   transactions: {
+//     type: Array,
+//     default: () => [],
+//   },
+// });
+const props = defineProps<{
+  transactions: Transactions[];
+}>();
 
-const emit = defineEmits(["filtered"]);
+// const emit = defineEmits(["filtered"]);
+const emit = defineEmits<{
+  filtered: [transactions: Transactions[]];
+}>();
 
 const search = ref("");
 const searchedDate = ref("");
@@ -56,7 +64,7 @@ function resetSearch() {
   searchedDate.value = "";
 }
 
-function formatAmount(amount) {
+function formatAmount(amount: number) {
   return Number(amount || 0).toLocaleString() + " MMK";
 }
 </script>
@@ -81,16 +89,7 @@ function formatAmount(amount) {
         <option value="expense">Expense</option>
       </select>
 
-      <!-- <label for="category">Categories </label> -->
-      <!-- <option
-        v-for="category in [...new Set(props.transactions.map(t => t.category).filter(Boolean))]"
-        :key="category"
-        :value="category"
-      >
-        {{ category }}
-      </option> -->
-
-      <select v-model="searchedCategory">
+      <!-- <select v-model="searchedCategory">
         <option value="all">All Categories</option>
         <option value="Foods and Dinks">Foods and Dinks</option>
         <option value="Health">Health</option>
@@ -100,6 +99,13 @@ function formatAmount(amount) {
         <option value="Bills">Bills</option>
         <option value="Salary">Salary</option>
         <option value="Others">Others</option>
+      </select> -->
+      <!-- typescript ko replaced -->
+      <select v-model="searchedCategory">
+        <option value="all" disable>All categories</option>
+        <option :value="item" v-for="item in categories">
+          {{ item }}
+        </option>
       </select>
 
       <input id="dateFilter" v-model="searchedDate" type="date" />

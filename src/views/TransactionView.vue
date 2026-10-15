@@ -1,0 +1,433 @@
+<script setup lang="ts">
+import { ref, watch, computed } from "vue";
+import AddTransaction from "../components/AddTransaction.vue";
+import Pagination from "../components/Pagination.vue";
+import Search from "../components/Search.vue";
+import type { Transactions } from "../types/transaction.ts";
+import BulkActions from "../components/BulkActions.vue";
+// import DashboardStats from "../components/DashboardStats.vue";
+const selectedIds = ref<number[]>([]);
+
+const showAddModal = ref(false);
+const transactions = ref<Transactions[]>(
+  JSON.parse(localStorage.getItem("transactions") || "[]"),
+);
+
+watch(
+  transactions,
+  (newTransactions) => {
+    localStorage.setItem("transactions", JSON.stringify(newTransactions));
+  },
+  { deep: true },
+);
+
+const filteredTransactions = ref<Transactions[]>([]);
+
+function updateFiltered(results: Transactions[]) {
+  filteredTransactions.value = results;
+  currentPage.value = 1;
+}
+
+const currentPage = ref(1);
+const itemsPerPage = 5;
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredTransactions.value.length / itemsPerPage);
+});
+
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) {
+    currentPage.value = Math.max(1, pages);
+  }
+});
+
+const paginatedTransactions = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage; //page mr data ko index number nae yuu
+
+  return filteredTransactions.value.slice(start, start + itemsPerPage); //(0, 0+5)=(0,1,2,3,4)
+});
+
+function changePage(page: number) {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+}
+const editingTransaction = ref<Transactions | null>(null);
+
+function openAddModal() {
+  editingTransaction.value = null;
+  showAddModal.value = true;
+}
+
+function closeAddModal() {
+  showAddModal.value = false;
+  editingTransaction.value = null;
+}
+
+function addTransaction(transaction: Transactions) {
+  transactions.value.unshift(transaction);
+  closeAddModal();
+}
+function updateTransaction(updatedTransaction: Transactions) {
+  transactions.value = transactions.value.map((transaction) => {
+    if (transaction.id === updatedTransaction.id) {
+      return updatedTransaction;
+    }
+
+    return transaction;
+  });
+
+  closeAddModal();
+}
+
+function editTransaction(transaction: Transactions) {
+  editingTransaction.value = { ...transaction };
+  showAddModal.value = true;
+}
+
+function deleteTransaction(id: number) {
+  const confirmed = window.confirm("Are you sure to delete this transaction?");
+
+  if (confirmed) {
+    transactions.value = transactions.value.filter(
+      (transaction) => transaction.id !== id,
+    );
+  }
+}
+
+function deleteSelectedTransactions() {
+  if (selectedIds.value.length === 0) {
+    return;
+  }
+  const confirmed = window.confirm(
+    `Delete ${selectedIds.value.length} selected transactions?`,
+  );
+  if (!confirmed) {
+    return;
+  }
+  transactions.value = transactions.value.filter(
+    (transaction) => !selectedIds.value.includes(transaction.id),
+  );
+  selectedIds.value = [];
+}
+function clearSelection() {
+  selectedIds.value = [];
+}
+
+function formatAmount(Amount: number) {
+  return Amount.toLocaleString();
+}
+</script>
+
+<template>
+  <main class="container">
+    <header class="header">
+      <div>
+        <h1>Expense Tracker</h1>
+        <p>Manage your income and expenses.</p>
+      </div>
+
+      <button class="add-btn" @click="openAddModal">+ Add Transaction</button>
+    </header>
+    <!-- <DashboardStats :transactions="transactions" /> -->
+
+    <Search :transactions="transactions" @filtered="updateFiltered" />
+
+    <BulkActions
+      :selected-count="selectedIds.length"
+      @delete-selected="deleteSelectedTransactions"
+      @clear-selection="clearSelection"
+    />
+
+    <section class="content">
+      <div class="table-header">
+        <h2>Transactions</h2>
+        <span>{{ filteredTransactions.length }} transactions</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  aria-label="Select all transactions on this page"
+                  :checked="
+                    paginatedTransactions.length > 0 &&
+                    paginatedTransactions.every((transaction) =>
+                      selectedIds.includes(transaction.id),
+                    )
+                  "
+                  @change="
+                    (event) => {
+                      const checked = (event.target as HTMLInputElement)
+                        .checked;
+
+                      const pageIds = paginatedTransactions.map(
+                        (transaction) => transaction.id,
+                      );
+
+                      if (checked) {
+                        selectedIds = [
+                          ...new Set([...selectedIds, ...pageIds]),
+                        ];
+                      } else {
+                        selectedIds = selectedIds.filter(
+                          (id) => !pageIds.includes(id),
+                        );
+                      }
+                    }
+                  "
+                />
+              </th>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Notes</th>
+              <th>Type</th>
+              <th class="amount-column">Amount</th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr v-if="filteredTransactions.length === 0">
+              <td colspan="7" class="empty-message">No transactions found.</td>
+            </tr>
+
+            <tr
+              v-for="transaction in paginatedTransactions"
+              :key="transaction.id"
+            >
+              <td>
+                <input
+                  v-model="selectedIds"
+                  type="checkbox"
+                  :value="transaction.id"
+                  :aria-label="`Select transaction ${transaction.id}`"
+                />
+              </td>
+
+              <td>{{ transaction.date }}</td>
+
+              <td>{{ transaction.category }}</td>
+
+              <td>{{ transaction.title || "—" }}</td>
+
+              <td>
+                <span class="type-badge" :class="transaction.type">
+                  {{ transaction.type }}
+                </span>
+              </td>
+
+              <td class="amount-column" :class="transaction.type">
+                MMK {{ formatAmount(transaction.amount) }}
+              </td>
+
+              <td class="actions-column">
+                <button class="edit-btn" @click="editTransaction(transaction)">
+                  Edit
+                </button>
+
+                <button
+                  class="delete-btn"
+                  @click="deleteTransaction(transaction.id)"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <Pagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        @change-page="changePage"
+      />
+    </section>
+
+    <AddTransaction
+      v-if="showAddModal"
+      :transaction="editingTransaction"
+      @close="closeAddModal"
+      @add="addTransaction"
+      @update="updateTransaction"
+    />
+  </main>
+</template>
+
+<style scoped>
+.container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 24px;
+  font-family: Arial, sans-serif;
+  color: #111827;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.add-btn {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background: #1d4ed8;
+}
+
+.content {
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.table-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.table-header span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+th,
+td {
+  padding: 15px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+th {
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td {
+  font-size: 14px;
+}
+
+tbody tr:hover {
+  background: #f9fafb;
+}
+
+.empty-message {
+  padding: 32px 12px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 10px;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.income.amount-column {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.expense.amount-column {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.amount-column {
+  text-align: right;
+}
+
+.actions-column {
+  text-align: center;
+}
+
+.edit-btn,
+.delete-btn {
+  margin: 2px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-btn {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.delete-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+@media (max-width: 600px) {
+  .container {
+    margin-top: 24px;
+    padding: 0 12px;
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .content {
+    padding: 12px;
+  }
+
+  .table-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

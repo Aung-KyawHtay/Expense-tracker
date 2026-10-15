@@ -1,362 +1,481 @@
-<script setup>
-import { ref, watch, computed } from "vue";
-import AddTransaction from "./components/AddTransaction.vue";
-import Pagination from "./components/Pagination.vue";
-import Search from "./components/Search.vue";
+<script setup lang="ts">
+import { ref, watch } from "vue";
+import { RouterView, RouterLink, useRoute } from "vue-router";
 
-const showAddModal = ref(false);
-const transactions = ref(
-  JSON.parse(localStorage.getItem("transactions") || "[]"), //JSON string ko js data save
-);
+const isSidebarOpen = ref(false);
+const route = useRoute();
 
 watch(
-  transactions,
-  (newTransactions) => {
-    localStorage.setItem("transactions", JSON.stringify(newTransactions));
+  () => route.path,
+  () => {
+    isSidebarOpen.value = false;
   },
-  { deep: true },
 );
-const filteredTransactions = ref([]);
 
-function updateFiltered(results) {
-  filteredTransactions.value = results;
-  currentPage.value =1;
+function closeSidebar() {
+  isSidebarOpen.value = false;
 }
 
-const currentPage = ref(1);
-const itemsPerPage = 5;
-
-const totalPages = computed(() => {
-  return Math.ceil(transactions.value.length / itemsPerPage);
-});
-
-const paginatedTransactions = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage; //page mr data ko index number nae yuu
-
-  return filteredTransactions.value.slice(start, start + itemsPerPage); //(0, 0+5)=(0,1,2,3,4)
-});
-
-function changePage(page) {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-  }
-}
-
-const editingTransaction = ref(null);
-
-function openAddModal() {
-  //editingTransaction.value = null;
-  showAddModal.value = true;
-}
-
-function closeAddModal() {
-  showAddModal.value = false;
-  editingTransaction.value = null;
-}
-
-function addTransaction(transaction) {
-  transactions.value.unshift(transaction);
-  closeAddModal();
-}
-function updateTransaction(updatedTransaction) {
-  transactions.value = transactions.value.map((transaction) => {
-    if (transaction.id === updatedTransaction.id) {
-      return updatedTransaction;
-    }
-
-    return transaction;
-  });
-
-  closeAddModal();
-}
-
-function editTransaction(transaction) {
-  editingTransaction.value = { ...transaction };
-  showAddModal.value = true;
-}
-
-function deleteTransaction(id) {
-  const confirmed = window.confirm(
-    "Are you sure to delete this transaction?",
-  );
-
-  if (confirmed) {
-    transactions.value = transactions.value.filter(
-      (transaction) => transaction.id !== id,
-    );
-  }
-}
-
-function formatAmount(Amount) {
-  return Amount.toLocaleString();
+function toggleSidebar() {
+  isSidebarOpen.value = !isSidebarOpen.value;
 }
 </script>
 
 <template>
-  <main class="container">
-    <header class="header">
-      <div>
-        <h1>Expense Tracker</h1>
-        <p>Manage your income and expenses.</p>
-      </div>
+  <div class="app-layout">
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+      <button
+        class="menu-button"
+        :aria-label="isSidebarOpen ? 'Close menu' : 'Open menu'"
+        :aria-expanded="isSidebarOpen"
+        aria-controls="app-sidebar"
+        @click="toggleSidebar"
+      >
+        <span aria-hidden="true">{{ isSidebarOpen ? "×" : "☰" }}</span>
+      </button>
 
-      <button class="add-btn" @click="openAddModal">+ Add Transaction</button>
+      <RouterLink to="/" class="mobile-brand" @click="closeSidebar">
+        <span class="brand-mark">$</span>
+        <span class="brand-name">Expense Tracker</span>
+      </RouterLink>
     </header>
 
-    <Search
-      :transactions="transactions"
-      @filtered="updateFiltered"
-    />
+    <!-- Mobile Overlay -->
+    <Transition name="fade">
+      <div
+        v-if="isSidebarOpen"
+        class="sidebar-overlay"
+        @click="closeSidebar"
+      ></div>
+    </Transition>
 
-    <section class="content">
-      <div class="table-header">
-        <h2>Transactions</h2>
-        <span>{{ filteredTransactions.length }} transactions</span>
+    <!-- Sidebar -->
+    <aside
+      id="app-sidebar"
+      class="sidebar"
+      :class="{ 'sidebar-open': isSidebarOpen }"
+    >
+      <div class="brand">
+        <RouterLink to="/" class="brand-link" @click="closeSidebar">
+          <span class="brand-mark">$</span>
+
+          <span class="brand-text">
+            <span class="brand-title">Expense Tracker</span>
+            <span class="brand-subtitle">Personal Finance</span>
+          </span>
+        </RouterLink>
+
+        <button
+          class="sidebar-close"
+          aria-label="Close menu"
+          @click="closeSidebar"
+        >
+          ×
+        </button>
       </div>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th></th>
-              <th>Date</th>
-              <th>Category</th>
-              <th>Notes</th>
-              <th>Type</th>
-              <th class="amount-column">Amount</th>
-              <th class="actions-column">Actions</th>
-            </tr>
-          </thead>
+      <!-- Navigation -->
+      <p class="menu-label">WORKSPACE</p>
 
-          <tbody>
-            <tr v-if="filteredTransactions.length === 0">
-              <td colspan="6" class="empty-message">No transactions yet.</td>
-            </tr>
+      <nav class="nav-links" aria-label="Main navigation">
+        <RouterLink
+          to="/"
+          class="nav-item"
+          exact-active-class="nav-active"
+          aria-label="Dashboard"
+        >
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </RouterLink>
 
-            <tr
-              v-for="transaction in paginatedTransactions"
-              :key="transaction.id"
-            >
-              <td><input type="checkbox"></td>
-              <td>{{ transaction.date }}</td>
-              <td>{{ transaction.category }}</td>
-              <td>{{ transaction.title || "—" }}</td>
+        <RouterLink
+          to="/transactions"
+          class="nav-item"
+          active-class="nav-active"
+        >
+          <span class="nav-icon" aria-hidden="true">⇄</span>
+          <span>Transactions</span>
+        </RouterLink>
 
-              <td>
-                <span class="type-badge" :class="transaction.type">
-                  {{ transaction.type }}
-                </span>
-              </td>
+        <RouterLink to="/budget" class="nav-item" active-class="nav-active">
+          <span class="nav-icon" aria-hidden="true">▣</span>
+          <span>Budget</span>
+        </RouterLink>
+      </nav>
 
-              <td class="amount-column" :class="transaction.type">
-                MMK
-                {{ formatAmount(transaction.amount) }}
-              </td>
+      <!-- Sidebar Bottom -->
+      <div class="sidebar-bottom">
+        <div class="bottom-icon" aria-hidden="true">✓</div>
 
-              <td class="actions-column">
-                <button class="edit-btn" @click="editTransaction(transaction)">
-                  Edit
-                </button>
-
-                <button
-                  class="delete-btn"
-                  @click="deleteTransaction(transaction.id)"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="bottom-text">
+          <p>Your finances, organized.</p>
+          <small>Simple. Clear. In control.</small>
+        </div>
       </div>
+    </aside>
 
-      <Pagination
-        :current-page="currentPage"
-        :total-pages="totalPages"
-        @change-page="changePage"
-      />
-    </section>
-
-    <AddTransaction
-      v-if="showAddModal"
-      :transaction="editingTransaction"
-      @close="closeAddModal"
-      @add="addTransaction"
-      @update="updateTransaction"
-    />
-  </main>
+    <!-- Main Page -->
+    <main class="main-content">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
-<style scoped>
-.container {
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 0 24px;
-  font-family: Arial, sans-serif;
-  color: #111827;
+<style>
+/* Global Reset */
+* {
+  box-sizing: border-box;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.header h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-}
-
-.header p {
+html,
+body,
+#app {
+  min-width: 320px;
+  min-height: 100%;
   margin: 0;
-  color: #6b7280;
 }
 
-.add-btn {
-  padding: 12px 18px;
-  border: none;
-  border-radius: 8px;
-  background: #2563eb;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
+body {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #26372f;
+  background: #f6f7f2;
+  -webkit-font-smoothing: antialiased;
 }
 
-.add-btn:hover {
-  background: #1d4ed8;
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
-.content {
-  padding: 24px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: white;
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
-.table-header {
+/* App Theme */
+.app-layout {
+  --primary: #4f806b;
+  --primary-dark: #345d4b;
+  --primary-light: #e8f0e9;
+  --text-main: #26372f;
+  --text-muted: #849188;
+  --border: #e4e9e2;
+  --white: #fff;
+  --sidebar-bg: #233d35;
+  --sidebar-hover: #304c42;
+  --sidebar-text: #dce8df;
+  --sidebar-muted: #a9beb0;
+
+  min-height: 100vh;
+}
+
+/* Brand */
+.brand {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 48px;
+}
+
+.brand-link,
+.mobile-brand {
+  display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 20px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
-.table-header h2 {
-  margin: 0;
-  font-size: 20px;
+.brand-mark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--primary);
+  color: var(--white);
+  font-size: 25px;
+  font-weight: 700;
+  box-shadow: 0 5px 14px rgb(0 0 0 / 10%);
 }
 
-.table-header span {
-  color: #6b7280;
-  font-size: 14px;
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
+.brand-title,
+.brand-name {
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.3px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-th,
-td {
-  padding: 15px 12px;
-  border-bottom: 1px solid #e5e7eb;
+.brand-title {
+  color: var(--white);
   white-space: nowrap;
 }
 
-th {
-  background: #f9fafb;
-  color: #6b7280;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.brand-subtitle {
+  color: var(--sidebar-muted);
+  font-size: 11px;
 }
 
-td {
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  width: 258px;
+  padding: 30px 20px 20px;
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-hover);
+  transition:
+    transform 0.28s ease,
+    visibility 0.28s ease,
+    box-shadow 0.28s ease;
+}
+
+.menu-label {
+  margin: 0 0 14px 12px;
+  color: var(--sidebar-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 1.6px;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--sidebar-text);
   font-size: 14px;
-}
-
-tbody tr:hover {
-  background: #f9fafb;
-}
-
-.empty-message {
-  padding: 32px 12px;
-  color: #6b7280;
-  text-align: center;
-}
-
-.type-badge {
-  display: inline-block;
-  padding: 5px 9px;
-  border-radius: 10px;
-  font-weight: bold;
-  text-transform: capitalize;
-}
-
-.income.amount-column {
-  color: #16a34a;
   font-weight: 600;
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
-.expense.amount-column {
-  color: #dc2626;
-  font-weight: 600;
+.nav-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 21px;
 }
 
-.amount-column {
-  text-align: right;
+.nav-item:hover {
+  color: var(--white);
+  background: var(--sidebar-hover);
 }
 
-.actions-column {
-  text-align: center;
+.nav-item.router-link-exact-active,
+.nav-item.nav-active {
+  color: var(--white);
+  background: var(--primary);
+  border-color: #68957f;
 }
 
-.edit-btn,
-.delete-btn {
-  margin: 2px;
-  padding: 7px 10px;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+.nav-item:focus-visible,
+.brand-link:focus-visible,
+.menu-button:focus-visible,
+.sidebar-close:focus-visible {
+  outline: 2px solid #b7d8c3;
+  outline-offset: 3px;
+}
+
+/* Sidebar Footer */
+.sidebar-bottom {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: auto;
+  padding: 17px 10px 7px;
+  border-top: 1px solid var(--sidebar-hover);
+}
+
+.bottom-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: #345548;
+  color: #b8dfc5;
+  font-size: 20px;
+}
+
+.bottom-text p {
+  margin: 0 0 5px;
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.bottom-text small {
+  color: var(--sidebar-muted);
+  font-size: 10px;
+}
+
+/* Main Content */
+.main-content {
+  min-height: 100vh;
+  margin-left: 258px;
+  padding: 30px;
+}
+
+/* Mobile Header */
+.mobile-header {
+  display: none;
+}
+
+.brand-name {
+  white-space: nowrap;
+}
+
+/* Shared Buttons */
+.menu-button,
+.sidebar-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 12px;
   cursor: pointer;
 }
 
-.edit-btn {
-  background: #dbeafe;
-  color: #1d4ed8;
+.menu-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--primary-dark);
+  font-size: 23px;
 }
 
-.delete-btn {
-  background: #fee2e2;
-  color: #b91c1c;
+.menu-button:hover {
+  background: var(--primary-light);
 }
 
-@media (max-width: 600px) {
-  .container {
-    margin-top: 24px;
-    padding: 0 12px;
+.sidebar-close {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--sidebar-hover);
+  background: transparent;
+  color: var(--white);
+  font-size: 25px;
+}
+
+/* Mobile Overlay */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgb(20 35 28 / 48%);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-height: 66px;
+    padding: 10px 16px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
   }
 
-  .header {
-    align-items: flex-start;
-    flex-direction: column;
+  .mobile-brand {
+    gap: 10px;
   }
 
-  .content {
-    padding: 12px;
+  .mobile-brand .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    font-size: 21px;
   }
 
-  .table-header {
-    align-items: flex-start;
-    flex-direction: column;
+  .sidebar {
+    width: 270px;
+    max-width: 85vw;
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .brand {
+    margin-bottom: 38px;
+  }
+
+  .sidebar-close {
+    display: grid;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 20px 14px;
+  }
+}
+
+@media (min-width: 701px) {
+  .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }
 </style>

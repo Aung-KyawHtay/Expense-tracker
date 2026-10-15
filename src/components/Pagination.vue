@@ -1,16 +1,25 @@
-<script setup>
-defineProps({
-  currentPage: {
-    type: Number,
-    required: true,
-  },
-  totalPages: {
-    type: Number,
-    required: true,
-  },
-});
+<script setup lang="ts">
+// defineProps({
+//   currentPage: {
+//     type: Number,
+//     required: true,
+//   },
+//   totalPages: {
+//     type: Number,
+//     required: true,
+//   },
+// });
 
-const emit = defineEmits(["change-page"]);
+// const emit = defineEmits(["change-page"]);
+
+const props = defineProps<{
+  currentPage: number;
+  totalPages: number;
+}>();
+
+const emit = defineEmits<{
+  "change-page": [page: number];
+}>();
 </script>
 
 <template>

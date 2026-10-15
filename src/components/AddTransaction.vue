@@ -1,28 +1,40 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
+import { categories } from "@/constants/categories";
+import type { Transactions } from "@/types/transaction";
 
-const props = defineProps({
-  transaction: {
-    type: Object,
-    default: null,
-  },
-});
+const props = defineProps<{
+  transaction: Transactions | null;
+}>();
 
-const emit = defineEmits(["close", "add", "update"]);
+const emit = defineEmits<{
+  close: [];
+  add: [transaction: Transactions];
+  update: [transaction: Transactions];
+}>();
 
-const type = ref("expense");
+const type = ref<"expense" | "income">("expense");
 const title = ref("");
-const amount = ref("");
+const amount = ref<number | string>("");
 const category = ref("");
-const date = ref(new Date().toISOString().slice(0, 10));
+const date = ref("");
 
-//form create
-function fillForm(transaction) {
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+// Fill form when editing a transaction
+function fillForm(transaction: Transactions | null) {
   type.value = transaction?.type ?? "expense";
   title.value = transaction?.title ?? "";
   amount.value = transaction?.amount ?? "";
   category.value = transaction?.category ?? "";
-  date.value = transaction?.date ?? new Date().toISOString().slice(0, 10);
+  date.value = transaction?.date ?? getTodayDate();
 }
 
 watch(
@@ -32,21 +44,28 @@ watch(
 );
 
 function submitTransaction() {
-  const Amount = Number(amount.value);
+  const parsedAmount = Number(amount.value);
+
   if (
     !category.value ||
-    !Amount ||
-    Amount <= 0
+    amount.value === "" ||
+    !Number.isFinite(parsedAmount) ||
+    parsedAmount <= 0
   ) {
-    alert("Please fill in Category and a valid Amount.");
+    alert("Please select a category and enter a valid amount.");
     return;
   }
-  //Form with data
-  const transactionData = {
-    id: props.transaction?.id ?? Date.now(), //crypto.randomUUID()
+
+  if (!date.value) {
+    alert("Please select a date.");
+    return;
+  }
+
+  const transactionData: Transactions = {
+    id: props.transaction?.id ?? Date.now(),
     type: type.value,
     title: title.value.trim(),
-    amount: Amount,
+    amount: parsedAmount,
     category: category.value,
     date: date.value,
   };
@@ -58,24 +77,32 @@ function submitTransaction() {
   }
 }
 </script>
+
 <template>
-  <!-- close modal when click the outside -->
-  <div class="modal-overlay" @click.self="emit('close')"> 
+  <div class="modal-overlay" @click.self="emit('close')">
     <form class="transaction-form" @submit.prevent="submitTransaction">
       <div class="form-header">
         <div>
-          <h2>Add Transaction</h2>
-          <p>Enter your income or expense details.</p>
+          <h2>
+            {{ props.transaction ? "Edit Transaction" : "Add Transaction" }}
+          </h2>
+          <p>
+            {{
+              props.transaction
+                ? "Update your income or expense details."
+                : "Enter your income or expense details."
+            }}
+          </p>
         </div>
-        <!-- send close event to closeAddModal -->
+
         <button
           type="button"
           class="close-btn"
-          @click="emit('close')"
           aria-label="Close form"
+          @click="emit('close')"
         >
-        x
-      </button>
+          ×
+        </button>
       </div>
 
       <label for="type">Transaction Type</label>
@@ -84,17 +111,12 @@ function submitTransaction() {
         <option value="income">Income</option>
       </select>
 
-      <label>Category</label>
-      <select v-model="category">
-        <option value="" disabled selected>Select Category</option>
-        <option value="Foods and Dinks">Foods and Dinks</option>
-        <option value="Health">Health</option>
-        <option value="Transport">Transport</option>
-        <option value="Shopping">Shopping</option>
-        <option value="Travel">Travel</option>
-        <option value="Bills">Bills</option>
-        <option value="Salary">Salary</option>
-        <option value="Others">Others</option>
+      <label for="category">Category</label>
+      <select id="category" v-model="category" required>
+        <option value="" disabled>Select category</option>
+        <option v-for="item in categories" :key="item" :value="item">
+          {{ item }}
+        </option>
       </select>
 
       <label for="amount">Amount</label>
@@ -102,7 +124,9 @@ function submitTransaction() {
         id="amount"
         v-model="amount"
         type="number"
-        placeholder="Enter amount.."
+        min="0.01"
+        step="any"
+        placeholder="Enter amount..."
         required
       />
 
@@ -141,6 +165,7 @@ function submitTransaction() {
 }
 
 .transaction-form {
+  box-sizing: border-box;
   width: 100%;
   max-width: 460px;
   max-height: 90vh;
@@ -154,8 +179,8 @@ function submitTransaction() {
 
 .form-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -172,7 +197,7 @@ function submitTransaction() {
 }
 
 .close-btn {
-  border: none;
+  border: 0;
   background: transparent;
   color: #6b7280;
   font-size: 28px;
@@ -195,12 +220,12 @@ function submitTransaction() {
   border-radius: 8px;
   background: #fff;
   font-size: 14px;
-  outline: none;
 }
 
 .transaction-form input:focus,
 .transaction-form select:focus {
   border-color: #2563eb;
+  outline: none;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
@@ -213,7 +238,7 @@ function submitTransaction() {
 
 .form-actions button {
   padding: 11px 16px;
-  border: none;
+  border: 0;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
