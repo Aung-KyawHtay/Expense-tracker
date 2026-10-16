@@ -100,7 +100,7 @@ function deleteSelectedTransactions() {
     return;
   }
   const confirmed = window.confirm(
-    `Delete ${selectedIds.value.length} selected transactions?`,
+    "Delete ${selectedIds.value.length} selected transactions?",
   );
   if (!confirmed) {
     return;

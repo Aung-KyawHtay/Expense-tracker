@@ -6,9 +6,9 @@ const isSidebarOpen = ref(false);
 const route = useRoute();
 
 watch(
-  () => route.path,
+  () => route.path, //watch this
   () => {
-    isSidebarOpen.value = false;
+    isSidebarOpen.value = false; //change this
   },
 );
 
@@ -23,7 +23,6 @@ function toggleSidebar() {
 
 <template>
   <div class="app-layout">
-    <!-- Mobile Header -->
     <header class="mobile-header">
       <button
         class="menu-button"
@@ -41,7 +40,6 @@ function toggleSidebar() {
       </RouterLink>
     </header>
 
-    <!-- Mobile Overlay -->
     <Transition name="fade">
       <div
         v-if="isSidebarOpen"

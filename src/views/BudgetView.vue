@@ -7,6 +7,11 @@ function loadTransactions(): Transactions[] {
   try {
     const saved = JSON.parse(localStorage.getItem("transactions") || "[]");
     return Array.isArray(saved) ? saved : [];
+    //   if (Array.isArray(saved)) {
+    //   return saved;
+    // } else {
+    //   return [];
+    // }
   } catch {
     return [];
   }
@@ -16,10 +21,12 @@ const transactions = ref<Transactions[]>(loadTransactions());
 
 const STORAGE_KEY = "expense-tracker-monthly-budget";
 
-function loadBudget() {
+function loadBudget(): number {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const value = saved === null ? 0 : Number(saved);
+
+    //localStorage.setItem(STORAGE_KEY, "450000");
 
     return Number.isFinite(value) && value >= 0 ? value : 0;
   } catch {
@@ -44,6 +51,7 @@ const totalSpent = computed(() =>
 
 const remaining = computed(() => monthlyBudget.value - totalSpent.value);
 
+//does not work
 const progress = computed(() =>
   monthlyBudget.value > 0
     ? Math.min((totalSpent.value / monthlyBudget.value) * 100, 100)
@@ -86,7 +94,7 @@ watch(monthlyBudget, (value) => {
   try {
     localStorage.setItem(STORAGE_KEY, String(value));
   } catch {
-    // Budget remains available for the current session.
+    // Budget remains
   }
 });
 </script>
@@ -121,13 +129,10 @@ watch(monthlyBudget, (value) => {
         <input
           v-model="budgetInput"
           type="number"
-          min="0"
-          step="any"
           placeholder="Enter budget amount"
-          aria-label="Monthly budget amount"
+          aria-label="Enter monthly budget"
           required
         />
-
         <button type="submit" class="primary-btn">Save Budget</button>
       </form>
     </section>
@@ -136,18 +141,22 @@ watch(monthlyBudget, (value) => {
     <div class="stats-grid">
       <article class="stat-card">
         <p>Monthly Budget</p>
-        <h2>{{ formatAmount(monthlyBudget) }}</h2>
+        <h2>{{ formatAmount(monthlyBudget) }} MMK</h2>
       </article>
 
       <article class="stat-card">
         <p>Total Spent</p>
-        <h2 class="expense-text">{{ formatAmount(totalSpent) }}</h2>
+        <h2 class="expense-text">
+          {{ formatAmount(totalSpent) }}
+          <p>MMK</p>
+        </h2>
       </article>
 
       <article class="stat-card">
         <p>Remaining</p>
         <h2 :class="remaining < 0 ? 'expense-text' : 'income-text'">
           {{ formatAmount(remaining) }}
+          <p>MMK</p>
         </h2>
       </article>
     </div>
@@ -172,8 +181,6 @@ watch(monthlyBudget, (value) => {
         class="progress-track"
         role="progressbar"
         :aria-valuenow="Math.round(progress)"
-        aria-valuemin="0"
-        aria-valuemax="100"
         aria-label="Monthly budget used"
       >
         <div
@@ -187,13 +194,13 @@ watch(monthlyBudget, (value) => {
         Set a budget amount to start tracking your spending.
       </p>
 
-      <p v-else-if="remaining < 0" class="helper-text expense-text">
+      <!-- <p v-else-if="remaining < 0" class="helper-text expense-text">
         You have exceeded your monthly budget.
       </p>
 
       <p v-else class="helper-text">
         {{ formatAmount(remaining) }} remaining for this month.
-      </p>
+      </p> -->
     </section>
 
     <!-- Category Breakdown -->
@@ -205,7 +212,7 @@ watch(monthlyBudget, (value) => {
         </div>
       </div>
 
-      <div v-if="monthlyExpenses.length" class="category-list">
+      <!-- <div v-if="monthlyExpenses.length" class="category-list">
         <article
           v-for="item in categoryBudgets"
           :key="item.name"
@@ -225,7 +232,31 @@ watch(monthlyBudget, (value) => {
         </article>
       </div>
 
-      <p v-else class="empty-state">No expenses recorded for this month.</p>
+      <p v-else class="empty-state">No expenses recorded for this month.</p> -->
+
+      <div class="category-list">
+        <article
+          v-for="item in categoryBudgets"
+          :key="item.name"
+          class="category-row"
+        >
+          <div class="category-info">
+            <strong>{{ item.name }}</strong>
+            <span>{{ formatAmount(item.spent) }}</span>
+          </div>
+
+          <div class="progress-track">
+            <div
+              class="progress-fill"
+              :style="{ width: `${item.percentage}%` }"
+            ></div>
+          </div>
+        </article>
+      </div>
+
+      <p v-if="!monthlyExpenses.length" class="empty-state">
+        No expenses recorded for this month.
+      </p>
     </section>
   </section>
 </template>

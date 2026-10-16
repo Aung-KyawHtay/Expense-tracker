@@ -26,12 +26,13 @@ const searchedType = ref("all");
 // Search and filter
 const searchedTransactions = computed(() => {
   return props.transactions.filter((transaction) => {
-    const searchInput = search.value.toLowerCase();
+    const searchInput = search.value.trim().toLowerCase();
 
     const matchSearch =
       String(transaction.id).includes(searchInput) ||
       (transaction.title || "").toLowerCase().includes(searchInput) ||
-      (transaction.category || "").toLowerCase().includes(searchInput);
+      (transaction.category || "").toLowerCase().includes(searchInput) ||
+      (transaction.type || "").toLocaleLowerCase().includes(searchInput);
 
     const matchType =
       searchedType.value === "all" || transaction.type === searchedType.value;
